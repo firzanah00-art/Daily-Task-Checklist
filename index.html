@@ -25,7 +25,7 @@ h1{font-size:1.1rem;font-weight:600;color:var(--muted);margin:0 0 14px}
 .bar{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;margin-bottom:18px}
 .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
 form{display:flex;gap:8px;margin-bottom:14px}
-input[type=text],input[type=email]{flex:1;min-width:0;font:inherit;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+input[type=text],input[type=email],input[type=password]{flex:1;min-width:0;font:inherit;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .add{border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;padding:0 18px;border-radius:12px;cursor:pointer}
 ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 li{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
@@ -39,6 +39,7 @@ li button:hover{color:var(--warn)}
 .tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin-top:28px;padding-top:14px;border-top:1px solid var(--line)}
 .tools .sub{margin:0}
 .login{margin-top:40px}
+#lf{flex-wrap:wrap}#lf input{flex:1 1 100%}#lf .add{flex:1;padding:11px 18px}#lf .alt{background:none;color:var(--accent);border:1px solid var(--accent)}
 .login h2{font-size:1.7rem;font-weight:800;margin:0 0 6px}
 [hidden]{display:none!important}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -50,8 +51,13 @@ li button:hover{color:var(--warn)}
 
 <section id="auth" class="login" hidden>
   <h2>Log masuk</h2>
-  <p class="sub">Masukkan emel kau. Kami hantar pautan log masuk, tekan pautan tu dan kau terus masuk. Tak perlu password.</p>
-  <form id="lf"><input type="email" id="em" placeholder="emel@contoh.com" required autocomplete="email"><button class="add" type="submit">Hantar pautan</button></form>
+  <p class="sub">Masukkan emel dan password. Kali pertama, tekan Daftar akaun.</p>
+  <form id="lf">
+    <input type="email" id="em" placeholder="emel@contoh.com" required autocomplete="email">
+    <input type="password" id="pw" placeholder="Password (sekurang-kurangnya 6 aksara)" required minlength="6" autocomplete="current-password">
+    <button class="add" type="submit">Log masuk</button>
+    <button class="add alt" type="button" id="su">Daftar akaun</button>
+  </form>
   <p class="sub" id="amsg" role="status"></p>
 </section>
 
@@ -191,10 +197,18 @@ $("imp").onchange=async e=>{
 };
 $("out").onclick=()=>sb.auth.signOut();
 
+const cred=()=>({email:$("em").value.trim(),password:$("pw").value});
 $("lf").onsubmit=async e=>{
-  e.preventDefault();$("amsg").textContent="Menghantar...";
-  const {error}=await sb.auth.signInWithOtp({email:$("em").value.trim(),options:{emailRedirectTo:location.origin+location.pathname}});
-  $("amsg").textContent=error?"Gagal: "+error.message:"Pautan dihantar. Semak emel kau dan tekan pautan tu.";
+  e.preventDefault();$("amsg").textContent="Sila tunggu...";
+  const {error}=await sb.auth.signInWithPassword(cred());
+  $("amsg").textContent=error?"Gagal log masuk: "+error.message:"";
+};
+$("su").onclick=async()=>{
+  const c=cred();if(!c.email||c.password.length<6){$("amsg").textContent="Isi emel dan password (sekurang-kurangnya 6 aksara).";return}
+  $("amsg").textContent="Sila tunggu...";
+  const {data,error}=await sb.auth.signUp(c);
+  if(error){$("amsg").textContent="Gagal daftar: "+error.message;return}
+  $("amsg").textContent=data.session?"":"Akaun dibuat. Semak emel untuk sahkan, atau matikan Confirm email di Supabase.";
 };
 
 sb.auth.onAuthStateChange((ev,session)=>{

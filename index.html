@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Penjejak Tugasan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap">
+<style>
+:root{--bg:#EEF2F4;--surface:#FFFFFF;--ink:#16263A;--muted:#5C6B7C;--line:#D5DDE3;--accent:#1F6F5C;--accent-ink:#FFFFFF;--soft:#DCEBE6;--warn:#B3412E;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1A24;--surface:#17252F;--ink:#E6EDF2;--muted:#93A4B3;--line:#2A3B48;--accent:#5CC2A5;--accent-ink:#0B1F19;--soft:#1D3A33;--warn:#F08A76;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F1A24;--surface:#17252F;--ink:#E6EDF2;--muted:#93A4B3;--line:#2A3B48;--accent:#5CC2A5;--accent-ink:#0B1F19;--soft:#1D3A33;--warn:#F08A76;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+main{max-width:640px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.1rem;font-weight:600;color:var(--muted);margin:0 0 14px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
+.tab{border:0;background:none;color:var(--muted);font:inherit;font-weight:600;padding:9px 4px;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tab small{font-weight:400;font-size:.72rem}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+.nav{display:flex;align-items:center;gap:8px;margin:22px 0 4px}
+.nav h2{flex:1;margin:0;font-size:1.7rem;font-weight:800;line-height:1.15;letter-spacing:-.01em}
+.ib{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;width:40px;height:40px;font:inherit;font-size:1.1rem;cursor:pointer}
+.today{width:auto;padding:0 12px;font-size:.85rem;font-weight:600}
+.sub{color:var(--muted);margin:0 0 12px;font-size:.9rem}
+.bar{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;margin-bottom:18px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+form{display:flex;gap:8px;margin-bottom:14px}
+input[type=text]{flex:1;min-width:0;font:inherit;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.add{border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;padding:0 18px;border-radius:12px;cursor:pointer}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+li{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+li input{width:20px;height:20px;accent-color:var(--accent);flex:none;cursor:pointer}
+li span{flex:1;overflow-wrap:anywhere}
+li.done span{text-decoration:line-through;color:var(--muted)}
+li button{border:0;background:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:2px 6px;border-radius:8px}
+li button:hover{color:var(--warn)}
+.empty{color:var(--muted);text-align:center;padding:28px 12px;border:1px dashed var(--line);border-radius:12px}
+.clear{margin-top:14px;border:0;background:none;color:var(--muted);font:inherit;font-size:.85rem;text-decoration:underline;cursor:pointer}
+.tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;margin-top:28px;padding-top:14px;border-top:1px solid var(--line)}.tools .clear{margin:0}.tools .sub{margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<h1>Penjejak Tugasan</h1>
+<div class="tabs" role="tablist" id="tabs"></div>
+<div class="nav">
+  <h2 id="label"></h2>
+  <button class="ib today" id="today" type="button">Hari ini</button>
+  <button class="ib" id="prev" type="button" aria-label="Sebelum">‹</button>
+  <button class="ib" id="next" type="button" aria-label="Seterusnya">›</button>
+</div>
+<p class="sub" id="count"></p>
+<div class="bar"><i id="fill"></i></div>
+<form id="f"><input type="text" id="in" maxlength="200" autocomplete="off"><button class="add" type="submit">Tambah</button></form>
+<ul id="list"></ul>
+<button class="clear" id="clear" type="button" hidden>Buang tugasan yang siap</button>
+<div class="tools"><button class="clear" id="exp" type="button" hidden>Simpan backup</button><label class="clear" for="imp" style="cursor:pointer">Pulihkan backup</label><input type="file" id="imp" accept=".json,application/json" hidden><span class="sub" id="msg" role="status"></span></div>
+</main>
+<script>
+const TYPES=[["day","Harian"],["week","Mingguan"],["month","Bulanan"],["year","Tahunan"]];
+const HINT={day:"Tambah tugasan untuk hari ini",week:"Tambah tugasan untuk minggu ini",month:"Tambah tugasan untuk bulan ini",year:"Tambah tugasan untuk tahun ini"};
+const pad=n=>String(n).padStart(2,"0");
+let tasks=[],type="day",anchor=new Date();
+try{tasks=JSON.parse(localStorage.getItem("tasks-v1")||"[]")}catch(e){tasks=[]}
+const save=()=>{try{localStorage.setItem("tasks-v1",JSON.stringify(tasks))}catch(e){}};
+const mon=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+function key(t,d){
+  if(t==="day")return ymd(d);
+  if(t==="week")return ymd(mon(d));
+  if(t==="month")return d.getFullYear()+"-"+pad(d.getMonth()+1);
+  return String(d.getFullYear());
+}
+const L=(d,o)=>d.toLocaleDateString("ms-MY",o);
+function label(){
+  if(type==="day")return L(anchor,{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  if(type==="week"){const a=mon(anchor),b=new Date(a);b.setDate(a.getDate()+6);return "Minggu "+L(a,{day:"numeric",month:"short"})+" – "+L(b,{day:"numeric",month:"short",year:"numeric"})}
+  if(type==="month")return L(anchor,{month:"long",year:"numeric"});
+  return String(anchor.getFullYear());
+}
+function shift(n){
+  const d=new Date(anchor);
+  if(type==="day")d.setDate(d.getDate()+n);
+  else if(type==="week")d.setDate(d.getDate()+7*n);
+  else if(type==="month"){d.setDate(1);d.setMonth(d.getMonth()+n)}
+  else d.setFullYear(d.getFullYear()+n);
+  anchor=d;render();
+}
+function render(){
+  const now=new Date();
+  document.getElementById("tabs").innerHTML=TYPES.map(([t,n])=>{
+    const open=tasks.filter(x=>x.type===t&&x.key===key(t,now)&&!x.done).length;
+    return `<button class="tab" role="tab" data-t="${t}" aria-selected="${t===type}">${n}<small>${open?open+" belum siap":"&nbsp;"}</small></button>`}).join("");
+  document.getElementById("label").textContent=label();
+  const k=key(type,anchor),cur=tasks.filter(x=>x.type===type&&x.key===k);
+  const done=cur.filter(x=>x.done).length;
+  document.getElementById("count").textContent=cur.length?`${done} daripada ${cur.length} siap`:"Belum ada tugasan";
+  document.getElementById("fill").style.width=cur.length?(done/cur.length*100)+"%":"0%";
+  document.getElementById("in").placeholder=HINT[type];
+  document.getElementById("clear").hidden=!done;
+  const ul=document.getElementById("list");ul.innerHTML="";
+  if(!cur.length){ul.innerHTML=`<div class="empty">Tiada tugasan lagi. Taip di atas dan tekan Tambah.</div>`;return}
+  cur.sort((a,b)=>a.done-b.done||a.id-b.id).forEach(x=>{
+    const li=document.createElement("li");li.className=x.done?"done":"";
+    const c=document.createElement("input");c.type="checkbox";c.checked=x.done;c.setAttribute("aria-label","Tanda siap");
+    c.onchange=()=>{x.done=c.checked;save();render()};
+    const s=document.createElement("span");s.textContent=x.text;
+    const b=document.createElement("button");b.type="button";b.textContent="×";b.setAttribute("aria-label","Padam");
+    b.onclick=()=>{tasks=tasks.filter(y=>y!==x);save();render()};
+    li.append(c,s,b);ul.append(li);
+  });
+}
+document.getElementById("tabs").onclick=e=>{const b=e.target.closest(".tab");if(b){type=b.dataset.t;render()}};
+document.getElementById("prev").onclick=()=>shift(-1);
+document.getElementById("next").onclick=()=>shift(1);
+document.getElementById("today").onclick=()=>{anchor=new Date();render()};
+document.getElementById("clear").onclick=()=>{const k=key(type,anchor);tasks=tasks.filter(x=>!(x.type===type&&x.key===k&&x.done));save();render()};
+document.getElementById("f").onsubmit=e=>{
+  e.preventDefault();const i=document.getElementById("in"),v=i.value.trim();if(!v)return;
+  tasks.push({id:Date.now(),text:v,type,key:key(type,anchor),done:false});
+  i.value="";save();render();i.focus();
+};
+const msg=t=>{document.getElementById("msg").textContent=t};
+(async()=>{
+  let dl=null;
+  try{dl=window.claude?await window.claude.use("downloads"):null}catch(e){dl=null}
+  const b=document.getElementById("exp");b.hidden=!dl;
+  b.onclick=async()=>{
+    try{await dl.save({filename:"tugasan-backup-"+ymd(new Date())+".json",data:JSON.stringify({v:1,tasks},null,2)});msg("Backup disimpan.")}
+    catch(e){if(!e||e.code!=="declined")msg("Backup gagal disimpan.")}
+  };
+})();
+document.getElementById("imp").onchange=async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{
+    const d=JSON.parse(await f.text());
+    const ok=x=>x&&typeof x.text==="string"&&typeof x.key==="string"&&TYPES.some(t=>t[0]===x.type);
+    const inc=(Array.isArray(d)?d:d.tasks).filter(ok);
+    const have=new Set(tasks.map(x=>x.id));let n=0;
+    inc.forEach(x=>{if(!have.has(x.id)){tasks.push({id:x.id||Date.now()+n,text:x.text,type:x.type,key:x.key,done:!!x.done});n++}});
+    save();render();msg(n+" tugasan dipulihkan.");
+  }catch(err){msg("Fail tak sah. Guna fail backup dari app ini.")}
+};
+render();
+</script>
+</body>
+</html>
